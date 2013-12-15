@@ -2,6 +2,8 @@ import urllib2, sys
 from BeautifulSoup import BeautifulSoup
 from difflib import context_diff
 from optparse import OptionParser
+from datetime import datetime
+import hashlib
 
 def testBasicRequest(url = None):
 	#Change proxy settings here
@@ -10,12 +12,17 @@ def testBasicRequest(url = None):
 	
 	#allows custom urls
 	if url is None:
-		req = urllib2.Request('http://www.google.com')
-	else:
-		req = urllib2.Request(url)
+		url = 'http://www.google.com'
+	
+	req = urllib2.Request(url)
 		
 	#Add headers here by calling req.add_header
 	req.add_header('Referrer', 'OpenFaux')
+
+	sign_string = datetime.now().strftime("%D.%s")
+	req.add_header('ofx-request-time', sign_string)
+	req.add_header('ofx-request-sign',hashlib.md5(url.split('//')[1]+sign_string).hexdigest() )
+
 	urllib2.install_opener(opener)
 	res=urllib2.urlopen(req)
 	soup=BeautifulSoup(res.read())

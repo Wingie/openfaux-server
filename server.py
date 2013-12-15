@@ -1,5 +1,6 @@
 from twisted.python import log
 from twisted.web import http, proxy
+import hashlib
 
 __author__ = "Yashin Mehaboobe aka sp3ctr3"
 
@@ -8,9 +9,10 @@ class ProxyClient(proxy.ProxyClient):
     """
     def handleHeader(self, key, value):
         """
-        Modify header here
+        Modify header here. 
+        Note that this is the header of the response that was made by our proxy on behalf of the client.
         """
-        log.msg("Header: %s: %s" % (key, value))
+        # log.msg("Response Header: %s: %s" % (key, value))
         proxy.ProxyClient.handleHeader(self, key, value)
 
     def handleResponsePart(self, buffer):
@@ -18,13 +20,27 @@ class ProxyClient(proxy.ProxyClient):
         Modify buffer to modify response. For example replacing buffer with buffer[::-1] will lead to a reversed output.
         This might cause content encoding errors. Currently test only on text only websites
         """
-        log.msg("Content: %s" % (buffer,))
+        # log.msg("Content: %s" % (buffer,))
         proxy.ProxyClient.handleResponsePart(self, buffer)
 
 class ProxyClientFactory(proxy.ProxyClientFactory):
     protocol = ProxyClient
 
 class ProxyRequest(proxy.ProxyRequest):
+    def process(self):
+        """
+        Parse Request Headers coming from the client.
+        we can use this to verify requests are originating from our client / handle older clients etc.
+        """
+        # log.msg("Request Request:", headers['host'])
+        headers = dict(self.getAllHeaders())
+        if headers['ofx-request-sign'] == hashlib.md5(headers['host']+headers['ofx-request-time']).hexdigest():
+            print log.msg("Request-Auth","pass")
+        else:
+            print log.msg("Request-Auth","failed")
+            
+        proxy.ProxyRequest.process(self)
+
     protocols = dict(http=ProxyClientFactory)
 
 class Proxy(proxy.Proxy):
